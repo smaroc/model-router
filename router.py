@@ -139,6 +139,9 @@ def read_prompt():
 
 
 def main():
+    # kill switch: pause the router without uninstalling the hook
+    if os.environ.get("MODEL_ROUTER_OFF") == "1":
+        print(json.dumps({"continue": True})); return
     prompt = read_prompt()
     # skip empty prompts and slash-commands (not model-worthy)
     if not prompt or prompt.lstrip().startswith("/"):

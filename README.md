@@ -84,6 +84,7 @@ Create `~/.config/model-router/config.json`:
 
 Environment:
 
+- `MODEL_ROUTER_OFF=1` — **pause** the router (no injection, no nudge) without uninstalling the hook.
 - `MODEL_ROUTER_QUIET=1` — keep the context injection but hide the visible nudge.
 
 ## Test it
