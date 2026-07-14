@@ -1,0 +1,23 @@
+{
+  "LOG": false,
+  "CUSTOM_ROUTER_PATH": "~/.claude-code-router/custom-router.js",
+  "Providers": [
+    {
+      "name": "anthropic",
+      "api_base_url": "https://api.anthropic.com/v1/messages",
+      "api_key": "sk-ant-REPLACE_WITH_YOUR_ANTHROPIC_KEY",
+      "models": [
+        "claude-haiku-4-5-20251001",
+        "claude-sonnet-4-6",
+        "claude-opus-4-8",
+        "claude-fable-5"
+      ]
+    }
+  ],
+  "Router": {
+    "default": "anthropic,claude-sonnet-4-6",
+    "background": "anthropic,claude-haiku-4-5-20251001",
+    "think": "anthropic,claude-opus-4-8",
+    "longContext": "anthropic,claude-opus-4-8"
+  }
+}

@@ -7,7 +7,14 @@
 - 🧩 **Configurable** — override models, thresholds, and keywords via a JSON file.
 - 🔒 **Local & private** — your prompts never leave your machine.
 
-> **Honest note:** a Claude Code hook **cannot change the model itself** (no JSON field allows it, verified mid-2026). `model-router` **injects a recommendation** into the turn's context and shows a nudge; you flip the model with `/model haiku|sonnet|opus` (one keystroke). It's the cleanest automation possible without breaking Claude Code.
+## Two modes
+
+| Mode | What it does | Model switch |
+|---|---|---|
+| **Recommend** (default, `router.py`) | A `UserPromptSubmit` hook that scores each prompt and **suggests** the model. Works in stock Claude Code, zero risk. | You press `/model` (one keystroke). |
+| **Live** (`ccr/`, via [claude-code-router](https://github.com/musistudio/claude-code-router)) | The **same scoring** runs as a routing proxy in front of Claude Code and **actually routes** each request to the chosen model. | **Automatic** — nothing to press. |
+
+> **Why two modes?** A Claude Code hook **cannot change the model itself** (no JSON field allows it, verified mid-2026) — so the hook can only recommend. To switch *for real, automatically*, put a router **proxy** in front of Claude Code. `model-router` ships both: the honest hook, and a live router that reuses the exact same scoring. Jump to [**Live mode**](#live-mode--actually-switch-the-model).
 
 ## Why
 
@@ -64,6 +71,34 @@ Add this to `~/.claude/settings.json` (point the path at your clone):
 
 `SKILL.md` is included, so you can also drop the folder into `~/.claude/skills/model-router/`.
 
+## Live mode — actually switch the model
+
+The hook recommends; **live mode switches for real**, automatically, with no `/model` keystroke. It reuses the *exact same scoring* (`ccr/score.js` is a 1:1 port of `router.py`), but runs it as a **custom router** inside [`musistudio/claude-code-router`](https://github.com/musistudio/claude-code-router) (CCR) — a proxy that sits in front of Claude Code and routes every request to the model you return.
+
+```bash
+./scripts/install-ccr.sh   # installs CCR + drops our router into ~/.claude-code-router/
+ccr code                   # launch Claude Code THROUGH the router (live routing is on)
+```
+
+The installer:
+
+1. `npm install -g @musistudio/claude-code-router` (if missing).
+2. Copies `ccr/score.js` + `ccr/custom-router.js` into `~/.claude-code-router/`.
+3. Writes a starter `~/.claude-code-router/config.json` (from [`ccr/config.example.json`](ccr/config.example.json)) wiring `CUSTOM_ROUTER_PATH` — and injects your `$ANTHROPIC_API_KEY` if it's set.
+
+**How it routes** (every request, live):
+
+| Prompt | Routes to |
+|---|---|
+| `renomme cette variable` / `git status` | ⚡ Haiku |
+| `écris une fonction qui valide un email` | ⚙️ Sonnet |
+| `design an architecture with cache + security` | 🧠 Opus |
+| `write the landing page copy` / `find a brand name` | ✨ Fable |
+
+Edit the tier → model map (and provider) at the top of `~/.claude-code-router/custom-router.js`. After any change: `ccr restart`. To turn live mode off, just run plain `claude` again instead of `ccr code`.
+
+**How it works under the hood:** CCR calls our exported `function (request, config, ctx)` on every request; we read the latest user message from `request.body.messages`, score it, and return `"anthropic,<model>"`. Returning `undefined` (slash-commands, tool results, internal turns) defers to CCR's own `Router` rules. See [`ccr/custom-router.js`](ccr/custom-router.js).
+
 ## Enable / disable / pause
 
 | Goal | How |
@@ -107,7 +142,8 @@ Environment:
 ```bash
 echo '{"user_input":"rename this variable"}'                | python3 router.py
 echo '{"user_input":"design the auth architecture + cache"}' | python3 router.py
-python3 tests/test_router.py   # runs the assertions
+python3 tests/test_router.py   # hook (recommend) assertions
+node   tests/test_ccr.mjs      # live router (CCR) assertions
 ```
 
 ## Uninstall
