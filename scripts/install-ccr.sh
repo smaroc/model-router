@@ -54,9 +54,16 @@ fi
 cat <<EOF
 
 ✓ LIVE mode ready.
-  Launch Claude Code THROUGH the router:   ccr code
-  After editing config or the router file:  ccr restart
-  Turn it off:                              stop using 'ccr code' (run plain 'claude')
+  1) Start the router:                      ccr start
+  2) Launch Claude Code THROUGH it:
+        CCR v3+ :  ccr default-claude-code       (run 'ccr' to list your profiles)
+        older   :  ccr code
+  Manage it in the UI:                      ccr ui
+  Turn it off:                              ccr stop  (then run plain 'claude')
+
+  Editing:
+    custom-router.js -> applies on the NEXT request (CCR hot-reloads it, no restart)
+    config.json      -> run 'ccr restart' (it's imported on first start, then kept in SQLite)
 
   How it routes (edit ~/.claude-code-router/custom-router.js to change):
     simple/mechanical  -> Haiku      hard/architecture -> Opus

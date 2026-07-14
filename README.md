@@ -76,9 +76,12 @@ Add this to `~/.claude/settings.json` (point the path at your clone):
 The hook recommends; **live mode switches for real**, automatically, with no `/model` keystroke. It reuses the *exact same scoring* (`ccr/score.js` is a 1:1 port of `router.py`), but runs it as a **custom router** inside [`musistudio/claude-code-router`](https://github.com/musistudio/claude-code-router) (CCR) — a proxy that sits in front of Claude Code and routes every request to the model you return.
 
 ```bash
-./scripts/install-ccr.sh   # installs CCR + drops our router into ~/.claude-code-router/
-ccr code                   # launch Claude Code THROUGH the router (live routing is on)
+./scripts/install-ccr.sh          # installs CCR + drops our router into ~/.claude-code-router/
+ccr start                         # start the router (gateway on 127.0.0.1:3456)
+ccr default-claude-code           # launch Claude Code THROUGH it (CCR v3+; older CCR: `ccr code`)
 ```
+
+> Verified end-to-end against `@musistudio/claude-code-router` **v3.0.4**: CCR calls our router on every request and routes `renomme…`→Haiku, `écris une fonction…`→Sonnet, `conçois une architecture…`→Opus, `rédige le copy…`→Fable — live, no `/model`. Editing `custom-router.js` applies on the **next request** (hot-reloaded); after editing `config.json`, run `ccr restart` (it's imported on first start, then kept in SQLite).
 
 The installer:
 
@@ -95,7 +98,7 @@ The installer:
 | `design an architecture with cache + security` | 🧠 Opus |
 | `write the landing page copy` / `find a brand name` | ✨ Fable |
 
-Edit the tier → model map (and provider) at the top of `~/.claude-code-router/custom-router.js`. After any change: `ccr restart`. To turn live mode off, just run plain `claude` again instead of `ccr code`.
+Edit the tier → model map (and provider) at the top of `~/.claude-code-router/custom-router.js` — changes apply on the next request (no restart). To turn live mode off, run `ccr stop` and use plain `claude` again.
 
 **How it works under the hood:** CCR calls our exported `function (request, config, ctx)` on every request; we read the latest user message from `request.body.messages`, score it, and return `"anthropic,<model>"`. Returning `undefined` (slash-commands, tool results, internal turns) defers to CCR's own `Router` rules. See [`ccr/custom-router.js`](ccr/custom-router.js).
 
