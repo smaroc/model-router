@@ -64,6 +64,21 @@ Add this to `~/.claude/settings.json` (point the path at your clone):
 
 `SKILL.md` is included, so you can also drop the folder into `~/.claude/skills/model-router/`.
 
+## Enable / disable / pause
+
+| Goal | How |
+|---|---|
+| **Enable** | `./scripts/install.sh` (registers the hook), then **restart Claude Code** |
+| **Pause** (keep it installed) | `export MODEL_ROUTER_OFF=1` — no injection, no nudge. Re-enable with `unset MODEL_ROUTER_OFF` |
+| **Quiet** (inject context, hide the visible nudge) | `export MODEL_ROUTER_QUIET=1` |
+| **Disable** (remove the hook) | `./scripts/uninstall.sh`, then restart Claude Code |
+| **Check state** | `grep -A6 UserPromptSubmit ~/.claude/settings.json` |
+
+> ⚠️ **Environment variables are read from the shell that launched Claude Code.** After an `export`,
+> **restart your Claude Code session** for it to take effect (or add the line to your `~/.zshrc` /
+> `~/.bashrc` to make it permanent). To toggle mid-session reliably, use `install.sh` / `uninstall.sh`
+> and restart.
+
 ## Configuration (optional)
 
 Create `~/.config/model-router/config.json`:
