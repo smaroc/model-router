@@ -18,7 +18,7 @@ Most people leave **Opus** running on everything — renaming a variable, format
 On every `UserPromptSubmit`, `router.py`:
 
 1. Reads your prompt from the hook's stdin JSON.
-2. **Scores** it: architecture / security / performance / hard debug / multi-file / long brief → higher; rename / format / list / short question / slash-command → lower.
+2. **Scores** it: architecture / security / performance / hard debug / multi-file / long brief → higher; rename / format / list / short question → lower.
 3. **Recommends** a model and injects it as context, plus a visible one-line nudge when it's worth it (save money on a downgrade, protect quality on an upgrade).
 
 | Prompt | Recommends |
@@ -29,9 +29,27 @@ On every `UserPromptSubmit`, `router.py`:
 | `why does this deadlock happen intermittently under load` | 🧠 Opus |
 | `refactor auth.ts and session.ts to share logic` (multi-file) | 🧠 Opus |
 | `write the landing page copy` / `find a brand name` / `rédige un post` | ✨ Fable |
-| `/model opus` (slash-command) | — skipped |
+| `/model opus`, `/clear`, `/status`, … (bare CLI control commands) | — skipped |
 
 The **creative lane** (writing, design, copywriting, branding, naming, storytelling) routes to **Fable / Mythos**, which sits *beside* the technical tiers rather than above them — a technical prompt like *"design an architecture"* still goes to Opus, not Fable.
+
+### Skill / slash-command routing
+
+A `/command` (including namespaced `/plugin:command`) is no longer skipped outright. It's classified
+by what the command *name* itself implies, then blended with keyword scoring on any arguments that
+follow it:
+
+| Command | Recommends | Why |
+|---|---|---|
+| `/model opus`, `/clear`, `/status`, `/help`, … | — skipped | built-in CLI control, no reasoning happens |
+| `/agents:status`, `/gsd:list-phase-assumptions` | ⚡ Haiku | read-only/listing skill |
+| `/gsd:plan-phase add checkout flow` | 🧠 Opus | planning skill |
+| `/security-review`, `/gsd:debug`, `/gsd:new-project` | 🧠 Opus | audit/debug/project-scoped skill |
+| `/hook-generator write 5 hooks for a fitness reel` | ✨ Fable | copy/content-generation skill |
+
+Anything that doesn't match a known control command or skill-name pattern falls back to ordinary
+keyword scoring on the full prompt text. Tune the patterns via `SKILL_HIGH` / `SKILL_LOW` /
+`SKILL_CREATIVE` / `CLI_CONTROL` in `router.py`, or override via `extra` in the config file.
 
 ## Install
 

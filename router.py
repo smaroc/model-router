@@ -75,6 +75,48 @@ TECH_OVERRIDE = [
     r"performance", r"optimi[sz]", r"\bschema\b", r"kubernetes", r"terraform", r"\bsql\b", r"backend",
 ]
 
+# ---- Slash-command / skill routing ----
+# Bare CLI control commands: instant, no model reasoning involved -> never route these.
+CLI_CONTROL = {
+    "model", "clear", "compact", "config", "cost", "doctor", "help", "hooks", "init",
+    "login", "logout", "mcp", "permissions", "resume", "status", "theme", "vim", "agents",
+    "bug", "release-notes", "add-dir", "review-comment",
+}
+# Skill/command name patterns that imply heavy reasoning -> +3 (same weight as HIGH).
+SKILL_HIGH = [
+    r"architect", r"debug", r"investigate", r"forensics", r"audit", r"security-review",
+    r"security", r"review", r"plan", r"research", r"migrat", r"design-review", r"verify",
+    r"deploy", r"performance", r"benchmark", r"incident", r"consensus", r"orchestrat",
+    r"new-project", r"new-milestone", r"roadmap", r"execute-phase", r"^execute$",
+    r"complete-milestone", r"^phase$", r"map-codebase",
+]
+# Skill/command name patterns that imply a quick/mechanical action -> -2 (same weight as LOW).
+SKILL_LOW = [
+    r"^status$", r"^list$", r"^logs?$", r"^health$", r"^metrics$", r"^help$", r"^stats$",
+    r"^progress$", r"^note$", r"^stop$", r"list-", r"-status$", r"-logs$", r"-metrics$",
+]
+# Skill/command name patterns that route straight to the creative lane.
+SKILL_CREATIVE = [
+    r"copy", r"brand", r"slide", r"design(?!-review|-system)", r"post-", r"post$", r"reel",
+    r"script", r"newsletter", r"landing", r"deck", r"hook-generator", r"content", r"seo",
+]
+
+
+def parse_slash_command(prompt: str):
+    """Return (name, rest) for a leading `/cmd` or `/ns:cmd`, else None."""
+    m = re.match(r"^/([A-Za-z0-9_.:-]+)(?:\s+(.*))?$", prompt.strip(), re.S)
+    if not m:
+        return None
+    name, rest = m.group(1), (m.group(2) or "").strip()
+    return name, rest
+
+
+def skill_score(name: str) -> int:
+    low = name.lower()
+    if any(re.search(rx, low) for rx in SKILL_HIGH): return 3
+    if any(re.search(rx, low) for rx in SKILL_LOW):  return -2
+    return 0
+
 
 def is_creative(low: str, extra: dict) -> bool:
     if any(re.search(rx, low) for rx in TECH_OVERRIDE):
@@ -96,8 +138,10 @@ def load_config():
     return cfg
 
 
-def score_prompt(p: str, extra: dict) -> int:
-    low = p.lower()
+def score_keywords(text: str, extra: dict) -> int:
+    """Pure keyword-bucket score, no length/structure heuristics — safe to reuse on
+    short fragments (e.g. a skill invocation's trailing arguments)."""
+    low = text.lower()
     s = 0
     for rx in HIGH + list(extra.get("high", [])):
         if re.search(rx, low): s += 3
@@ -105,6 +149,12 @@ def score_prompt(p: str, extra: dict) -> int:
         if re.search(rx, low): s += 1
     for rx in LOW + list(extra.get("low", [])):
         if re.search(rx, low): s -= 2
+    return s
+
+
+def score_prompt(p: str, extra: dict) -> int:
+    low = p.lower()
+    s = score_keywords(p, extra)
     words = len(re.findall(r"\w+", low))
     if words <= 4:  s -= 2          # very short order = usually trivial
     if words >= 100: s += 2         # long brief / spec = complex
@@ -143,13 +193,32 @@ def main():
     if os.environ.get("MODEL_ROUTER_OFF") == "1":
         print(json.dumps({"continue": True})); return
     prompt = read_prompt()
-    # skip empty prompts and slash-commands (not model-worthy)
-    if not prompt or prompt.lstrip().startswith("/"):
+    if not prompt:
         print(json.dumps({"continue": True})); return
 
     cfg = load_config()
     extra = cfg.get("extra", {})
-    if is_creative(prompt.lower(), extra):
+
+    slash = parse_slash_command(prompt)
+    if slash and ":" not in slash[0] and slash[0] in CLI_CONTROL:
+        # bare, unnamespaced CLI control command (/model, /clear, ...) -> instant, nothing to route
+        print(json.dumps({"continue": True})); return
+
+    if slash:
+        # skill/slash-command invocation: classify by the command name itself, then
+        # blend in keyword scoring on any arguments/text that follow it (keyword hits
+        # only — the short-argument length penalty in score_prompt doesn't apply here,
+        # a skill call with terse args isn't the same as a terse standalone prompt).
+        name, rest = slash
+        short = name.split(":")[-1]
+        is_tech = any(re.search(rx, rest.lower()) for rx in TECH_OVERRIDE)
+        if any(re.search(rx, short.lower()) for rx in SKILL_CREATIVE) and not is_tech:
+            model, tier, icon, label = cfg["models"]["creative"], "creative", "✨", f"creative skill (/{name})"
+        else:
+            s = skill_score(short) + (score_keywords(rest, extra) if rest else 0)
+            model, tier, icon, label = pick(s, cfg)
+            label = f"{label} (/{name})"
+    elif is_creative(prompt.lower(), extra):
         model, tier, icon, label = cfg["models"]["creative"], "creative", "✨", "creative (writing / design / copy / brand)"
     else:
         s = score_prompt(prompt, extra)

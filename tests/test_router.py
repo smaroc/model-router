@@ -39,6 +39,15 @@ CASES = [
     ("design a multi-tenant architecture with cache and security", "high"),
     ("/model opus", "skip"),
     ("", "skip"),
+    # skill/slash-command routing by command name
+    ("/gsd:debug", "high"),
+    ("/security-review", "high"),
+    ("/agents:status", "low"),
+    ("/hook-generator write 5 hooks for a fitness reel", "creative"),
+    ("/gsd:plan-phase add checkout flow", "high"),
+    ("/architecture design a multi-tenant system with sharded db", "high"),
+    ("/gsd:new-project", "high"),
+    ("/status", "skip"),           # bare unnamespaced CLI control command
 ]
 
 def main():
