@@ -17,10 +17,12 @@ Env: MODEL_ROUTER_QUIET=1  -> keep the context injection but hide the visible sy
 """
 import sys, json, re, os
 
-# ---- Default target models (display names; the /model aliases are low/mid/high) ----
+# ---- Default target models (display names; the /model aliases are low/mid/high/creative) ----
+# `creative` routes writing/design/copy work to Fable (Mythos), a dedicated lane that sits
+# *beside* the technical tiers rather than above them.
 DEFAULTS = {
-    "models":     {"low": "Haiku 4.5", "mid": "Sonnet 5", "high": "Opus 4.8"},
-    "aliases":    {"low": "haiku", "mid": "sonnet", "high": "opus"},
+    "models":     {"low": "Haiku 4.5", "mid": "Sonnet 5", "high": "Opus 4.8", "creative": "Fable 5"},
+    "aliases":    {"low": "haiku", "mid": "sonnet", "high": "opus", "creative": "fable"},
     "thresholds": {"high": 3, "mid": 1},
 }
 
@@ -53,6 +55,31 @@ LOW = [  # -2 : mechanical / read-only / short question
     r"console\.log", r"\bprint\b", r"bump", r"\bversion\b", r"\blint\b", r"readme", r"rephrase", r"reformule",
 ]
 CODEFILE = r"[\w\-/]+\.(py|ts|tsx|js|jsx|go|rs|java|rb|php|c|cpp|h|hpp|sql|kt|swift|scala|clj|ex|css|html|vue|svelte)"
+
+# ---- Creative lane (routes to Fable / Mythos) : writing / design / copy / brand ----
+CREATIVE = [
+    r"landing page", r"page de vente", r"copywrit", r"\bcopy for\b", r"ad copy", r"ux writing", r"microcopy",
+    r"onboarding copy", r"ui copy", r"marketing (copy|email|campaign)", r"campagne", r"newsletter",
+    r"blog post", r"article de blog", r"\bstorytelling\b", r"narrati", r"\bslogan\b", r"tagline", r"headline",
+    r"accroche", r"tone of voice", r"ton de voix", r"branding", r"\bbrand\b", r"charte", r"\blogo\b",
+    r"naming", r"nom de (marque|produit|domaine|projet)", r"name (ideas|for (my|the|a))", r"moodboard",
+    r"r[eé]dige.{0,20}(texte|post|article|email|newsletter|caption|l[eé]gende|bio|description|pitch|annonce)",
+    r"write.{0,20}(the |a |some )?(copy|post|article|email|newsletter|caption|bio|slogan|tagline|headline|description|ad|pitch|story)",
+    r"[eé]cris.{0,20}(un|le|la|des)?.{0,6}(texte|post|article|email|slogan|accroche|pitch|caption|l[eé]gende|scénario|histoire)",
+    r"script (de|du|vidéo|reel|pub)", r"scénario", r"pitch deck", r"value proposition", r"proposition de valeur",
+]
+# If the prompt is clearly technical, do NOT hijack it into the creative lane.
+TECH_OVERRIDE = [
+    r"architect", r"\bsyst[eè]me\b", r"\bsystem\b", r"algorithm", r"database", r"base de donn", r"\bapi\b",
+    r"endpoint", r"deadlock", r"concurren", r"migration", r"refactor", r"s[eé]curit", r"security",
+    r"performance", r"optimi[sz]", r"\bschema\b", r"kubernetes", r"terraform", r"\bsql\b", r"backend",
+]
+
+
+def is_creative(low: str, extra: dict) -> bool:
+    if any(re.search(rx, low) for rx in TECH_OVERRIDE):
+        return False
+    return any(re.search(rx, low) for rx in (CREATIVE + list(extra.get("creative", []))))
 
 
 def load_config():
@@ -118,21 +145,27 @@ def main():
         print(json.dumps({"continue": True})); return
 
     cfg = load_config()
-    s = score_prompt(prompt, cfg.get("extra", {}))
-    model, tier, icon, label = pick(s, cfg)
+    extra = cfg.get("extra", {})
+    if is_creative(prompt.lower(), extra):
+        model, tier, icon, label = cfg["models"]["creative"], "creative", "✨", "creative (writing / design / copy / brand)"
+    else:
+        s = score_prompt(prompt, extra)
+        model, tier, icon, label = pick(s, cfg)
     alias = cfg["aliases"][tier]
 
-    ctx = (f"[model-router] Estimated complexity: {label} (score {s}). "
+    ctx = (f"[model-router] Detected: {label}. "
            f"Recommended model for this request: **{model}**. "
            f"If the active model differs, switch with `/model {alias}`. "
-           f"Rule of thumb: keep the top model for architecture and hard problems, "
-           f"the cheaper tiers for everything else (typically -50% to -80% cost).")
+           f"Rule of thumb: creative/design/copy -> Fable; architecture and hard problems -> the top model; "
+           f"everything else -> the cheaper tiers (typically -50% to -80% cost).")
 
     sys_msg = None
     if tier == "low":
         sys_msg = f"{icon} model-router: simple task -> **{model}** is enough (cheaper). /model {alias}"
     elif tier == "high":
         sys_msg = f"{icon} model-router: complex task -> keep **{model}**. /model {alias}"
+    elif tier == "creative":
+        sys_msg = f"{icon} model-router: creative/design task -> **{model}** shines here. /model {alias}"
 
     out = {"continue": True, "suppressOutput": False,
            "hookSpecificOutput": {"hookEventName": "UserPromptSubmit", "additionalContext": ctx}}

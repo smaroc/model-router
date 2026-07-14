@@ -1,6 +1,6 @@
 # model-router
 
-**Stop paying for the top model on trivial tasks.** `model-router` is a tiny [Claude Code](https://code.claude.com) hook that reads every prompt, scores its complexity, and **recommends the right model** — ⚡ Haiku for simple work, ⚙️ Sonnet for standard dev, 🧠 Opus for hard problems — so you switch with one keystroke instead of running Opus for everything.
+**Stop paying for the top model on trivial tasks.** `model-router` is a tiny [Claude Code](https://code.claude.com) hook that reads every prompt, scores its complexity, and **recommends the right model** — ⚡ Haiku for simple work, ⚙️ Sonnet for standard dev, 🧠 Opus for hard problems, and ✨ **Fable (Mythos)** for creative/design/copy — so you switch with one keystroke instead of running the top model for everything.
 
 - 🪶 **Zero dependencies** — one Python file, <50 ms, no network.
 - 🌍 **Bilingual** — French + English signals out of the box.
@@ -28,7 +28,10 @@ On every `UserPromptSubmit`, `router.py`:
 | `design a multi-tenant architecture with cache and security` | 🧠 Opus |
 | `why does this deadlock happen intermittently under load` | 🧠 Opus |
 | `refactor auth.ts and session.ts to share logic` (multi-file) | 🧠 Opus |
+| `write the landing page copy` / `find a brand name` / `rédige un post` | ✨ Fable |
 | `/model opus` (slash-command) | — skipped |
+
+The **creative lane** (writing, design, copywriting, branding, naming, storytelling) routes to **Fable / Mythos**, which sits *beside* the technical tiers rather than above them — a technical prompt like *"design an architecture"* still goes to Opus, not Fable.
 
 ## Install
 
@@ -67,15 +70,17 @@ Create `~/.config/model-router/config.json`:
 
 ```json
 {
-  "models":     { "low": "Haiku 4.5", "mid": "Sonnet 5", "high": "Opus 4.8" },
+  "models":     { "low": "Haiku 4.5", "mid": "Sonnet 5", "high": "Opus 4.8", "creative": "Fable 5" },
+  "aliases":    { "low": "haiku", "mid": "sonnet", "high": "opus", "creative": "fable" },
   "thresholds": { "high": 3, "mid": 1 },
-  "extra":      { "high": ["\\bkubernetes\\b", "\\bterraform\\b"], "low": ["\\bwip\\b"] }
+  "extra":      { "high": ["\\bkubernetes\\b"], "creative": ["\\bmoodboard\\b"], "low": ["\\bwip\\b"] }
 }
 ```
 
-- **`models`** — display names for each tier.
+- **`models`** — display names for each tier (`low`/`mid`/`high` + the `creative` lane → Fable).
+- **`aliases`** — the `/model <alias>` shorthand injected in the nudge. If `/model fable` isn't recognized in your setup, set `"creative": "claude-fable-5"`.
 - **`thresholds`** — score cutoffs (`>= high` → top model, `>= mid` → mid, else low).
-- **`extra`** — your own regex signals per tier (added to the built-in FR/EN lists).
+- **`extra`** — your own regex signals per tier, including `"creative"` (added to the built-in FR/EN lists).
 
 Environment:
 

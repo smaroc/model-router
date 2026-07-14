@@ -13,7 +13,10 @@ def tier(prompt):
         return "skip"
     m = re.search(r"\*\*(.+?)\*\*", ctx)
     name = m.group(1) if m else ""
-    return "high" if "Opus" in name else "mid" if "Sonnet" in name else "low"
+    if "Fable" in name:  return "creative"
+    if "Opus" in name:   return "high"
+    if "Sonnet" in name: return "mid"
+    return "low"
 
 CASES = [
     ("renomme cette variable en userId", "low"),
@@ -26,6 +29,14 @@ CASES = [
     ("design a multi-tenant architecture with cache and security", "high"),
     ("why does this deadlock happen intermittently under load", "high"),
     ("refactor auth.ts and session.ts to share the same logic", "high"),
+    # creative lane -> Fable
+    ("écris la landing page et le copy de mon site", "creative"),
+    ("trouve un nom de marque pour mon app", "creative"),
+    ("write the copy for the homepage hero section", "creative"),
+    ("rédige un post LinkedIn sur le lancement", "creative"),
+    ("write a tagline and a slogan for the brand", "creative"),
+    # technical "design" must NOT hijack into creative
+    ("design a multi-tenant architecture with cache and security", "high"),
     ("/model opus", "skip"),
     ("", "skip"),
 ]
